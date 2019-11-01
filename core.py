@@ -66,7 +66,7 @@ with open(sys.argv[1], 'r') as f:
     final = Dataframe(OrderedDict([
         ('name', np.array([x.name for x in elements])),
         ('mean', np.array([np.mean(x.df.vals) for x in elements])),
-        ('2dev', np.array([np.std(x.df.vals, ddof=1) for x in elements])),
+        ('2dev', np.array([2*np.std(x.df.vals, ddof=1) for x in elements])),
         ('n', np.array([len(x.df) for x in elements]))
     ]))
 
