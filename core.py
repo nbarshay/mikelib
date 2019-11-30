@@ -44,49 +44,48 @@ class Sample(object):
     pass
 
 
-df = Dataframe({'a': np.array([1,2,3])})
+def processOne(in_fname, out_fname):
+    with open(in_fname, 'r') as f:
+        reader = csv.reader(f, delimiter='\t')
+        lines = []
+        for xs in reader:
+            lines.append(xs)
+        
+        (header_idx, header_str), = [(a,b) for a,b in enumerate(lines) if b[0] == 'Int.Nr']
+        footer_idx = [a for a,b in enumerate(lines) if b[0] == '***' and a>header_idx][0]
 
-with open(sys.argv[1], 'r') as f:
-    reader = csv.reader(f, delimiter='\t')
-    lines = []
-    for xs in reader:
-        lines.append(xs)
-    
-    (header_idx, header_str), = [(a,b) for a,b in enumerate(lines) if b[0] == 'Int.Nr']
-    footer_idx = [a for a,b in enumerate(lines) if b[0] == '***' and a>header_idx][0]
+        good_lines = lines[header_idx+1:footer_idx]
 
-    good_lines = lines[header_idx+1:footer_idx]
+        elements = []
 
-    elements = []
+        for element_idx, element_id in enumerate(header_str):
+            if element_id not in ['Int.Nr','Time','']:
+                vals = np.array([float(x[element_idx]) for x in good_lines if x[element_idx] != ''])
+                elements.append(SampleElement(element_id, vals))
 
-    for element_idx, element_id in enumerate(header_str):
-        if element_id not in ['Int.Nr','Time','']:
-            vals = np.array([float(x[element_idx]) for x in good_lines if x[element_idx] != ''])
-            elements.append(SampleElement(element_id, vals))
+        #create composite elements
+        COMP = [
+            ('3:232Th', '3:238U', '232Th/238U')
+        ]
+        for top, bottom, res in COMP:
+            top_e, = [x for x in elements if x.name == top]
+            bottom_e, = [x for x in elements if x.name == bottom]
+            elements.append(SampleElement(res, top_e.orig_vals/bottom_e.orig_vals))
 
-    #create composite elements
-    COMP = [
-        ('3:232Th', '3:238U', '232Th/238U')
-    ]
-    for top, bottom, res in COMP:
-        top_e, = [x for x in elements if x.name == top]
-        bottom_e, = [x for x in elements if x.name == bottom]
-        elements.append(SampleElement(res, top_e.orig_vals/bottom_e.orig_vals))
+        ##############################
 
-    ##############################
+        final = Dataframe(OrderedDict([
+            ('name', np.array([x.name for x in elements])),
+            ('mean', np.array([np.mean(x.df.vals) for x in elements])),
+            ('2dev', np.array([2*np.std(x.df.vals, ddof=1) for x in elements])),
+            ('n', np.array([len(x.df) for x in elements]))
+        ]))
 
-    final = Dataframe(OrderedDict([
-        ('name', np.array([x.name for x in elements])),
-        ('mean', np.array([np.mean(x.df.vals) for x in elements])),
-        ('2dev', np.array([2*np.std(x.df.vals, ddof=1) for x in elements])),
-        ('n', np.array([len(x.df) for x in elements]))
-    ]))
-
-    final_rows = [','.join(k for k,v in final.items())]
-    for i in xrange(len(final)):
-        final_rows.append(','.join(str(v[i]) for k,v in final.items()))
+        final_rows = [','.join(k for k,v in final.items())]
+        for i in xrange(len(final)):
+            final_rows.append(','.join(str(v[i]) for k,v in final.items()))
 
 
-    with open(sys.argv[2], 'w') as f:
-        for x in final_rows:
-            print>>f, x
+        with open(out_fname, 'w') as f:
+            for x in final_rows:
+                print>>f, x
