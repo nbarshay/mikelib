@@ -6,9 +6,12 @@ from copy import copy, deepcopy
 from obvious import *
 
 
+
+
 class SampleElement(object):
     def __init__(self, name, vals):
         self.name = name
+        self.orig_vals = vals
         self.orig_n = len(vals)
 
         df = Dataframe({'vals': vals, 'idx': np.arange(len(vals))})
@@ -60,6 +63,15 @@ with open(sys.argv[1], 'r') as f:
         if element_id not in ['Int.Nr','Time','']:
             vals = np.array([float(x[element_idx]) for x in good_lines if x[element_idx] != ''])
             elements.append(SampleElement(element_id, vals))
+
+    #create composite elements
+    COMP = [
+        ('3:232Th', '3:238U', '232Th/238U')
+    ]
+    for top, bottom, res in COMP:
+        top_e, = [x for x in elements if x.name == top]
+        bottom_e, = [x for x in elements if x.name == bottom]
+        elements.append(SampleElement(res, top_e.orig_vals/bottom_e.orig_vals))
 
     ##############################
 
