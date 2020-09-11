@@ -1,0 +1,85 @@
+#!/usr/bin/env python3
+
+import math
+import glob
+import sys
+import csv
+from collections import OrderedDict, defaultdict, namedtuple, deque
+
+def processOne(sample_id, Th230_U238, Th230_U238_2sig, d234Um, d234Um_2sig):
+    x0 = 100000;
+
+    Th230_U238min = Th230_U238 - Th230_U238_2sig
+    Th230_U238max = Th230_U238 + Th230_U238_2sig
+    d234Umin = d234Um - d234Um_2sig
+    d234Umax = d234Um + d234Um_2sig
+
+    # Th230_U238 = 0.7768;
+    # d234Um = 110.47;
+    L230 = 9.17055E-06;
+    L234 = 2.82203E-06;
+    L238 = 1.55125E-10;
+    L232 = 4.94750E-11;
+
+    # input should be in delta notation
+
+    step = 1e8;
+    smallest_step = 1e-9;
+    while step > smallest_step:
+        F = - 1 + Th230_U238 + math.exp(-L230*x0)-((d234Um)*0.001)*(L230/(L230-L234))*(1-math.exp((L234-L230)*x0));
+        dF = -L230*math.exp(-L230*x0) - ((d234Um*0.001))*(L230)*(math.exp(L234-L230)*x0); 
+        x1 = x0 - F/dF;
+        step = abs(x1 - x0);
+        x0 = x1;
+
+    ###############
+
+    step = 1e8;
+    smallest_step = 1e-9;
+
+    while step > smallest_step:
+        F = - 1 + Th230_U238max + math.exp(-L230*x0)-((d234Um)*0.001)*(L230/(L230-L234))*(1-math.exp((L234-L230)*x0));
+        dF = -L230*math.exp(-L230*x0) - (0.001*(d234Um))*(L230)*(math.exp(L234-L230)*x0); 
+        x2 = x0 - F/dF;
+        step = abs(x2 - x0);
+        x0 = x2;
+
+    ###################
+
+    step = 1e8;
+    smallest_step = 1e-9;
+
+    while step > smallest_step:
+        F = - 1 + Th230_U238min + math.exp(-L230*x0)-((d234Um)*0.001)*(L230/(L230-L234))*(1-math.exp((L234-L230)*x0));
+        dF = -L230*math.exp(-L230*x0) - (0.001*(d234Um))*(L230)*(math.exp(L234-L230)*x0); 
+        x3 = x0 - F/dF;
+        step = abs(x3 - x0);
+        x0 = x3;
+
+    ###############
+
+    return OrderedDict([('sample_id', sample_id), ('mean_age', x1), ('max_age', x2), ('min_age', x3)])
+
+
+in_path = sys.argv[1]
+out_path = sys.argv[2]
+
+out_rows = []
+with open(in_path, 'r', encoding='utf-8-sig') as f:
+    reader = csv.DictReader(f)
+    for row in reader:
+        sample_id = row['Sample ID']
+        if sample_id:
+            print(f'Processing sample_id={sample_id}')
+            Th230_U238 = float(row['[230Th/238U]'])
+            Th230_U238_2sig = float(row['[230/238] 2sig error'])
+            d234Um = float(row['[234U/238U]'])
+            d234Um_2sig = float(row['[234/238] 2 sig error'])
+            out_rows.append(processOne(sample_id, Th230_U238, Th230_U238_2sig, d234Um, d234Um_2sig))
+
+with open(out_path, 'w') as csvfile:
+    fieldnames = out_rows[0].keys()
+    writer = csv.DictWriter(csvfile, fieldnames=fieldnames)
+    writer.writeheader()
+    for x in out_rows:
+        writer.writerow(x)

@@ -18,6 +18,7 @@ import glob
 import shutil
 import json
 from StringIO import StringIO
+import csv
 
 def funnel(xs, eq=operator.eq):
     it = iter(xs)
